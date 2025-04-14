@@ -1,8 +1,5 @@
 const { getPrefix } = global.utils;
 const { commands, aliases } = global.GoatBot;
-const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
 
 module.exports = {
     config: {
@@ -44,28 +41,16 @@ module.exports = {
     onStart: async function ({ message, args, event, getLang, role }) {
         const prefix = getPrefix(event.threadID);
         const userName = event.senderName || "User";
-        const imgUrl = "https://i.imgur.com/mjkbKmy.jpeg";
 
-        // Image ko pehle download karna padega
-        async function downloadImage(url) {
-            const imagePath = path.join(__dirname, "help.jpg");
-            const response = await axios({ url, responseType: "arraybuffer" });
-            fs.writeFileSync(imagePath, Buffer.from(response.data, "binary"));
-            return imagePath;
-        }
-
-        // Commands filter karna
         const availableCommands = Array.from(commands.values())
             .filter(cmd => cmd.config.role <= role);
 
-        // Specific command ka details show karne ka logic
         if (args.length === 1 && isNaN(args[0])) {
             const commandName = args[0].toLowerCase();
             const command = commands.get(commandName) || aliases.get(commandName);
 
             if (!command || command.config.role > role) {
-                const imagePath = await downloadImage(imgUrl);
-                return message.reply({ body: getLang("invalidCommand", commandName), attachment: fs.createReadStream(imagePath) });
+                return message.reply(getLang("invalidCommand", commandName));
             }
 
             const cmdConfig = command.config;
@@ -85,28 +70,22 @@ module.exports = {
             msg += `${getLang("usageHeader")}\n${getLang("commandUsage", guide)}`;
             msg += `\n${getLang("commandDetailsFooter")}`;
 
-            const imagePath = await downloadImage(imgUrl);
-            return message.reply({ body: msg, attachment: fs.createReadStream(imagePath) });
+            return message.reply(msg);
         }
 
-        // "help all" case
         if (args[0] === "all") {
             const commandList = availableCommands.map(cmd => cmd.config.name).join(", ");
-            const imagePath = await downloadImage(imgUrl);
-            return message.reply({
-                body: `${getLang("allCommandsHeader")}\n${commandList}\n\n${getLang("allCommandsFooter", availableCommands.length)}`,
-                attachment: fs.createReadStream(imagePath)
-            });
+            return message.reply(
+                `${getLang("allCommandsHeader")}\n${commandList}\n\n${getLang("allCommandsFooter", availableCommands.length)}`
+            );
         }
 
-        // Pagination logic
         const commandsPerPage = 10;
         const page = parseInt(args[0]) || 1;
         const totalPages = Math.ceil(availableCommands.length / commandsPerPage);
 
         if (page < 1 || page > totalPages) {
-            const imagePath = await downloadImage(imgUrl);
-            return message.reply({ body: `❌ Invalid page number. Total pages: ${totalPages}`, attachment: fs.createReadStream(imagePath) });
+            return message.reply(`❌ Invalid page number. Total pages: ${totalPages}`);
         }
 
         const startIndex = (page - 1) * commandsPerPage;
@@ -119,7 +98,6 @@ module.exports = {
         });
         msg += `\n${getLang("commandFooter", userName, page, totalPages, availableCommands.length)}`;
 
-        const imagePath = await downloadImage(imgUrl);
-        return message.reply({ body: msg, attachment: fs.createReadStream(imagePath) });
+        return message.reply(msg);
     }
 };
